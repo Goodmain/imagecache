@@ -128,7 +128,7 @@ class ImageCacheController extends BaseController
         foreach (config('imagecache.paths') as $path) {
             // don't allow '..' in filenames
             $image_path = $path.'/'.str_replace('..', '', $filename);
-            if (file_exists($image_path) && is_file($image_path)) {
+            if ((file_exists($image_path) && is_file($image_path)) || ($this->checkRemoteFileExists($image_path))) {
                 // file found
                 return $image_path;
             }
@@ -161,5 +161,32 @@ class ImageCacheController extends BaseController
             'Cache-Control' => 'max-age='.(config('imagecache.lifetime')*60).', public',
             'Etag' => $etag
         ));
+    }
+
+    private function checkRemoteFileExists($url)
+    {
+        $curl = curl_init($url);
+
+        // don't fetch the actual page, you only want to check the connection is ok
+        curl_setopt($curl, CURLOPT_NOBODY, true);
+
+        // do request
+        $result = curl_exec($curl);
+
+        $ret = false;
+
+        //if request did not fail
+        if ($result !== false) {
+            //if request was ok, check response code
+            $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+            if ($statusCode == 200) {
+                $ret = true;
+            }
+        }
+
+        curl_close($curl);
+
+        return $ret;
     }
 }
